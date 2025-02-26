@@ -111,6 +111,6 @@ Wikis and things like wordpress can get bent.
 
 ---
 
-[Back to Main Page](../../README.md)
+[Back to Main Page](../../)
 
 ---

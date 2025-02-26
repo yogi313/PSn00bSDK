@@ -150,7 +150,7 @@ to be done is to initialize the CD-ROM library by calling the function
 **CdInit()**. This function not only initializes the CD-ROM hardware but
 also the CD-ROM library itself.
 
-### Initializing the CD-ROM {#cdinit}
+### Initializing the CD-ROM
 
 After calling **ResetGraph()** in your init routine you can then call
 **CdInit()** to initialize the CD-ROM library.
@@ -167,7 +167,7 @@ that don\'t always need to read the disc in mind.
 After calling this function, all CD-ROM functions exposed by the library
 should be usable.
 
-### Locating a File {#locatefile}
+### Locating a File
 
 Now that the CD-ROM library is initialized the next step is to locate a
 file on the disc to be read. Unlike the BIOS CD-ROM functions, the
@@ -192,7 +192,7 @@ file path must additionally end with a file version identifier, usually
 The return value is just a pointer to the struct specified by *loc*, but
 NULL is returned if the file name specified does not exist.
 
-### Reading a File {#readfile}
+### Reading a File
 
 Now that the file we want to read has been located, the next logical
 step is to read it\'s contents. This is done by using two CD-ROM
