@@ -17,6 +17,57 @@ project(
 	HOMEPAGE_URL "http://lameguy64.net/?page=psn00bsdk"
 )
 
+## Detect the operating system
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(ZIP_URL "https://github.com/Lameguy64/PSn00bSDK/releases/download/v0.24/gcc-mipsel-none-elf-12.3.0-linux.zip")
+    message(STATUS "Detected operating system: Linux")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set(ZIP_URL "https://github.com/Lameguy64/PSn00bSDK/releases/download/v0.24/gcc-mipsel-none-elf-12.3.0-windows.zip")
+    message(STATUS "Detected operating system: Windows")
+else()
+    message(FATAL_ERROR "Unsupported operating system: ${CMAKE_SYSTEM_NAME}")
+endif()
+
+# Path to the ZIP file and extraction directory
+set(ZIP_FILE "${CMAKE_BINARY_DIR}/gcc-mipsel-none-elf-12.3.0.zip")
+
+# Check if the ZIP file already exists
+if(EXISTS ${ZIP_FILE})
+    message(STATUS "ZIP file already exists: ${ZIP_FILE}. Skipping download.")
+else()
+    # Download the ZIP file
+    file(
+        DOWNLOAD
+        "${ZIP_URL}"
+        "${ZIP_FILE}"
+        SHOW_PROGRESS
+        TIMEOUT 60
+        STATUS DOWNLOAD_STATUS
+        LOG DOWNLOAD_LOG
+    )
+
+    # Check the download status
+    list(GET DOWNLOAD_STATUS 0 DOWNLOAD_RESULT)
+    list(GET DOWNLOAD_STATUS 1 DOWNLOAD_MESSAGE)
+
+    if(NOT DOWNLOAD_RESULT EQUAL 0)
+        message(FATAL_ERROR
+            "Download from ${ZIP_URL} failed:\n"
+            "${DOWNLOAD_MESSAGE}\n\n"
+            "Full log:\n${DOWNLOAD_LOG}"
+        )
+    endif()
+endif()
+
+# Extract the ZIP file
+set(EXTRACT_DIR "${CMAKE_BINARY_DIR}/..")
+file(MAKE_DIRECTORY ${EXTRACT_DIR})
+file(ARCHIVE_EXTRACT
+    INPUT ${ZIP_FILE}
+    DESTINATION ${EXTRACT_DIR}
+)
+message(STATUS "ZIP file has been extracted to: ${EXTRACT_DIR}")
+
 # Including this without initializing at least one language throws a warning and
 # there's no way to mute it.
 include(GNUInstallDirs)
