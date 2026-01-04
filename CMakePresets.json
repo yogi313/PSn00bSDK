@@ -14,6 +14,10 @@
 			"binaryDir":   "${sourceDir}/build",
 			"warnings": {
 				"dev": false
+			},
+			"cacheVariables": {
+				"PSN00BSDK_TC": "${sourceDir}/bin",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}"
 			}
 		},
 		{
