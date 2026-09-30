@@ -5,7 +5,8 @@ If you wish to build the toolchain yourself, beware that this process can get
 pretty tedious if your machine is not fairly recent. Ensure you have at least a
 quad-core processor and 4 GB of free space before continuing.
 
-You'll need a Linux environment, even if you want to build a Windows toolchain
+For a native macOS toolchain, use the macOS section below. For the Linux and
+Windows recipes further down, you'll need a Linux environment, even if you want to build a Windows toolchain
 (as GCC is basically impossible to build under Windows but can be cross-compiled
 via MinGW). Due to how the GCC build process works, you'll have to build a Linux
 version of the toolchain first to be able to compile it for Windows. This
@@ -17,6 +18,25 @@ to follow them if you are using another distro. If you do not have access to a
 Linux system already, consider spinning up a VM (a headless Debian or Ubuntu
 Server install is recommended) or using WSL, whose setup is out of the scope of
 this guide.
+
+## Native macOS toolchain
+
+The script builds native GCC 16.1.0 and binutils 2.46.0 for `mipsel-none-elf`;
+Apple Silicon has been tested locally. With Xcode Command Line Tools and
+Homebrew installed, run from the SDK root:
+
+```sh
+brew install cmake ninja make gmp mpfr libmpc
+bash tools/build-toolchain-macos.sh
+cmake --preset default -DPSN00BSDK_TC="$PWD/build/toolchain-macos/install"
+cmake --build build
+cmake --install build
+```
+
+SDK libraries use GNU C23. Keep the Homebrew libraries installed; the compiler needs them at runtime.
+CMake uses `PSN00BSDK_TC` or `PATH` before attempting a download.
+GitHub Actions provides Linux/Windows artifacts and a separate macOS workflow
+for ARM64 and Intel, both available through manual runs.
 
 ## Choosing a GCC version
 

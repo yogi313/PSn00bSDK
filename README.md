@@ -70,6 +70,10 @@ used as a starting point.
 For more information on how to get started, or if you wish to build the SDK
 yourself from source instead, refer to [installation.md](doc/installation.md).
 
+This fork also supports building a native macOS GCC toolchain. See
+[the macOS toolchain instructions](doc/toolchain.md#native-macos-toolchain)
+for Apple Silicon/Intel builds and the fork's downloadable CI artifacts.
+
 ## Tutorials and examples
 
 The `examples` directory contains several example programs showcasing different

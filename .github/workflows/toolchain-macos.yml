@@ -1,0 +1,46 @@
+name: Build macOS GCC toolchain
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - tools/build-toolchain-macos.sh
+      - tools/toolchain-smoke.cpp
+      - .github/workflows/toolchain-macos.yml
+  pull_request:
+    paths:
+      - tools/build-toolchain-macos.sh
+      - tools/toolchain-smoke.cpp
+      - .github/workflows/toolchain-macos.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: brew install make gmp mpfr libmpc
+      - name: Build native toolchain
+        env:
+          JOBS: '3'
+        run: bash tools/build-toolchain-macos.sh
+      - name: Compile a MIPS smoke test
+        run: |
+          printf 'int test(int x) { return x * 3; }\n' | build/toolchain-macos/install/bin/mipsel-none-elf-gcc -march=r3000 -msoft-float -O2 -x c -c -o smoke.o -
+          build/toolchain-macos/install/bin/mipsel-none-elf-objdump -f smoke.o
+      - name: Package toolchain
+        run: tar -czf gcc-mipsel-none-elf-16.1.0-macos-${{ matrix.arch }}.tar.gz -C build/toolchain-macos/install .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gcc-mipsel-none-elf-16.1.0-macos-${{ matrix.arch }}
+          path: gcc-mipsel-none-elf-16.1.0-macos-*.tar.gz

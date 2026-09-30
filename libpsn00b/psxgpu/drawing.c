@@ -11,7 +11,7 @@
 
 /* Private utilities */
 
-// This function is actually referenced in env.c as well, so it can't be static.
+// Used by the queue adapter and the synchronous drawing entry points.
 void _send_linked_list(GPU_DrawOpType type, const uint32_t *ot) {
 	SetDrawOpType(type);
 	GPU_GP1 = 0x04000002; // Enable DMA request, route to GP0
@@ -40,11 +40,22 @@ static void _send_buffer(
 
 /* Buffer and primitive drawing API */
 
+// Queue callbacks have a fixed three-word ABI. Convert to the helper's types
+// here instead of calling through an incompatible function pointer.
+void _send_linked_list_op(uint32_t type, uint32_t ot, uint32_t unused) {
+	(void) unused;
+	_send_linked_list((GPU_DrawOpType) type, (const uint32_t *) ot);
+}
+
+static void _send_buffer_op(uint32_t type, uint32_t buf, uint32_t length) {
+	_send_buffer((GPU_DrawOpType) type, (const uint32_t *) buf, length);
+}
+
 int DrawOTag(const uint32_t *ot) {
 	_sdk_validate_args(ot, -1);
 
 	return EnqueueDrawOp(
-		(void *)   &_send_linked_list,
+		&_send_linked_list_op,
 		(uint32_t) DRAWOP_TYPE_DMA,
 		(uint32_t) ot,
 		0
@@ -55,7 +66,7 @@ int DrawOTagIRQ(const uint32_t *ot) {
 	_sdk_validate_args(ot, -1);
 
 	return EnqueueDrawOp(
-		(void *)   &_send_linked_list,
+		&_send_linked_list_op,
 		(uint32_t) DRAWOP_TYPE_GPU_IRQ,
 		(uint32_t) ot,
 		0
@@ -66,7 +77,7 @@ int DrawBuffer(const uint32_t *buf, size_t length) {
 	_sdk_validate_args(buf && length && (length <= 0xffff), -1);
 
 	return EnqueueDrawOp(
-		(void *)   &DrawBuffer2,
+		&_send_buffer_op,
 		(uint32_t) DRAWOP_TYPE_DMA,
 		(uint32_t) buf,
 		(uint32_t) length
@@ -77,7 +88,7 @@ int DrawBufferIRQ(const uint32_t *buf, size_t length) {
 	_sdk_validate_args(buf && length && (length <= 0xffff), -1);
 
 	return EnqueueDrawOp(
-		(void *)   &DrawBuffer2,
+		&_send_buffer_op,
 		(uint32_t) DRAWOP_TYPE_GPU_IRQ,
 		(uint32_t) buf,
 		(uint32_t) length

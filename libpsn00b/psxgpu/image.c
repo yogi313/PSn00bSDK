@@ -91,6 +91,14 @@ static void _dma_transfer(const RECT *rect, uint32_t *data, int write) {
 
 /* VRAM transfer API */
 
+static void _dma_transfer_op(uint32_t rect, uint32_t data, uint32_t write) {
+	_dma_transfer((const RECT *) rect, (uint32_t *) data, (int) write);
+}
+
+static void _move_image_op(uint32_t rect, uint32_t x, uint32_t y) {
+	MoveImage2((const RECT *) rect, (int) x, (int) y);
+}
+
 int LoadImage(const RECT *rect, const uint32_t *data) {
 	_sdk_validate_args(rect && data, -1);
 
@@ -100,7 +108,7 @@ int LoadImage(const RECT *rect, const uint32_t *data) {
 	_next_saved_rect    = (index + 1) % QUEUE_LENGTH;
 
 	return EnqueueDrawOp(
-		(void *)   &_dma_transfer,
+		&_dma_transfer_op,
 		(uint32_t) &_saved_rects[index],
 		(uint32_t) data,
 		1
@@ -116,7 +124,7 @@ int StoreImage(const RECT *rect, uint32_t *data) {
 	_next_saved_rect    = (index + 1) % QUEUE_LENGTH;
 
 	return EnqueueDrawOp(
-		(void *)   &_dma_transfer,
+		&_dma_transfer_op,
 		(uint32_t) &_saved_rects[index],
 		(uint32_t) data,
 		0
@@ -132,7 +140,7 @@ int MoveImage(const RECT *rect, int x, int y) {
 	_next_saved_rect    = (index + 1) % QUEUE_LENGTH;
 
 	return EnqueueDrawOp(
-		(void *)   &MoveImage2,
+		&_move_image_op,
 		(uint32_t) &_saved_rects[index],
 		(uint32_t) x,
 		(uint32_t) y

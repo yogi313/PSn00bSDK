@@ -8,11 +8,11 @@
 # shared between all actions in a repo.
 
 name: Build PSn00bSDK
-on:   [ push, pull_request ]
+on:   [ push, pull_request, workflow_dispatch ]
 env:
-  BINUTILS_VERSION: '2.43'
+  BINUTILS_VERSION: '2.46.0'
   BINUTILS_OPTIONS: '--disable-docs --disable-nls --disable-werror --with-float=soft'
-  GCC_VERSION:      '14.2.0'
+  GCC_VERSION:      '16.1.0'
   GCC_OPTIONS:      '--disable-docs --disable-nls --disable-werror --disable-libada --disable-libssp --disable-libquadmath --disable-threads --disable-libgomp --disable-libstdcxx-pch --disable-hosted-libstdcxx --enable-languages=c,c++ --without-isl --without-headers --with-float=soft --with-gnu-as --with-gnu-ld'
   GCC_TARGET:       'mipsel-none-elf'
 
@@ -28,7 +28,7 @@ jobs:
       uses: actions/cache@v4
       with:
         enableCrossOsArchive: true
-        key:  gcc-${{ env.GCC_TARGET }}-${{ env.GCC_VERSION }}
+        key:  gcc-linux-windows-${{ env.GCC_TARGET }}-${{ env.GCC_VERSION }}-binutils-${{ env.BINUTILS_VERSION }}
         path: gcc
 
     - name: Install prerequisites
@@ -84,6 +84,24 @@ jobs:
         make -j 2
         make install-strip
 
+    # Publish on every successful build, not only when a release tag exists.
+    - name: Archive toolchains
+      run: |
+        tar -czf gcc-linux.tar.gz -C gcc/linux .
+        tar -czf gcc-windows.tar.gz -C gcc/windows .
+
+    - name: Upload Linux toolchain
+      uses: actions/upload-artifact@v4
+      with:
+        name: gcc-${{ env.GCC_TARGET }}-${{ env.GCC_VERSION }}-linux
+        path: gcc-linux.tar.gz
+
+    - name: Upload Windows toolchain
+      uses: actions/upload-artifact@v4
+      with:
+        name: gcc-${{ env.GCC_TARGET }}-${{ env.GCC_VERSION }}-windows
+        path: gcc-windows.tar.gz
+
   # No surprises here either. The GitHub Actions VMs even come with most of the
   # dependencies required to build PSn00bSDK preinstalled.
   build-sdk-windows:
@@ -101,7 +119,7 @@ jobs:
       uses: actions/cache@v4
       with:
         enableCrossOsArchive: true
-        key:  gcc-${{ env.GCC_TARGET }}-${{ env.GCC_VERSION }}
+        key:  gcc-linux-windows-${{ env.GCC_TARGET }}-${{ env.GCC_VERSION }}-binutils-${{ env.BINUTILS_VERSION }}
         path: gcc
 
     - name: Install prerequisites
@@ -139,7 +157,7 @@ jobs:
       uses: actions/cache@v4
       with:
         enableCrossOsArchive: true
-        key:  gcc-${{ env.GCC_TARGET }}-${{ env.GCC_VERSION }}
+        key:  gcc-linux-windows-${{ env.GCC_TARGET }}-${{ env.GCC_VERSION }}-binutils-${{ env.BINUTILS_VERSION }}
         path: gcc
 
     - name: Install prerequisites
@@ -178,7 +196,7 @@ jobs:
       uses: actions/cache@v4
       with:
         enableCrossOsArchive: true
-        key:  gcc-${{ env.GCC_TARGET }}-${{ env.GCC_VERSION }}
+        key:  gcc-linux-windows-${{ env.GCC_TARGET }}-${{ env.GCC_VERSION }}-binutils-${{ env.BINUTILS_VERSION }}
         path: gcc
 
     - name: Package GCC toolchains

@@ -16,7 +16,7 @@
 				"dev": false
 			},
 			"cacheVariables": {
-				"PSN00BSDK_TC": "${sourceDir}/bin",
+				"PSN00BSDK_TC": "",
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}"
 			}
 		},

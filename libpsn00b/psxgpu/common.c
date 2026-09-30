@@ -18,7 +18,7 @@ static void _default_vsync_halt(void);
 /* Private types */
 
 typedef struct {
-	void     (*func)(uint32_t, uint32_t, uint32_t);
+	GPU_DrawOpCallback func;
 	uint32_t arg1, arg2, arg3;
 } DrawOp;
 
@@ -196,7 +196,7 @@ void SetDrawOpType(GPU_DrawOpType type) {
 	_drawop_type = type;
 }
 
-int EnqueueDrawOp(void (*func)(), uint32_t arg1, uint32_t arg2, uint32_t arg3) {
+int EnqueueDrawOp(GPU_DrawOpCallback func, uint32_t arg1, uint32_t arg2, uint32_t arg3) {
 	_sdk_validate_args(func, -1);
 
 	// If GPU DMA is currently busy, append the command to the queue instead of

@@ -592,7 +592,9 @@ void *VSyncHaltFunction(void (*func)(void));
 void *VSyncCallback(void (*func)(void));
 
 void SetDrawOpType(GPU_DrawOpType type);
-int EnqueueDrawOp(void (*func)(), uint32_t arg1, uint32_t arg2, uint32_t arg3);
+// Queue callbacks receive exactly three 32-bit arguments, including unused ones.
+typedef void (*GPU_DrawOpCallback)(uint32_t, uint32_t, uint32_t);
+int EnqueueDrawOp(GPU_DrawOpCallback func, uint32_t arg1, uint32_t arg2, uint32_t arg3);
 int DrawSync(int mode);
 void *DrawSyncCallback(void (*func)(void));
 

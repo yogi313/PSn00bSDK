@@ -76,7 +76,7 @@ static const uint32_t *_build_drawenv_ot(const uint32_t *ot, DRAWENV *env) {
 
 /* Drawing API */
 
-void _send_linked_list(GPU_DrawOpType type, const uint32_t *ot);
+void _send_linked_list_op(uint32_t type, uint32_t ot, uint32_t unused);
 
 DRAWENV *SetDefDrawEnv(DRAWENV *env, int x, int y, int w, int h) {
 	_sdk_validate_args(env && (w > 0) && (h > 0), 0);
@@ -108,7 +108,7 @@ int DrawOTagEnv(const uint32_t *ot, DRAWENV *env) {
 	_sdk_validate_args(ot && env, -1);
 
 	return EnqueueDrawOp(
-		(void *)   &_send_linked_list,
+		&_send_linked_list_op,
 		(uint32_t) DRAWOP_TYPE_DMA,
 		(uint32_t) _build_drawenv_ot(ot, env),
 		0
@@ -119,7 +119,7 @@ int DrawOTagEnvIRQ(const uint32_t *ot, DRAWENV *env) {
 	_sdk_validate_args(ot && env, -1);
 
 	return EnqueueDrawOp(
-		(void *)   &_send_linked_list,
+		&_send_linked_list_op,
 		(uint32_t) DRAWOP_TYPE_GPU_IRQ,
 		(uint32_t) _build_drawenv_ot(ot, env),
 		0

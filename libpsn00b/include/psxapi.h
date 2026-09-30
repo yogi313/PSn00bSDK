@@ -233,7 +233,7 @@ static inline void _InitCd(void) {
 void SysEnqIntRP(int pri, INT_RP *rp);
 void SysDeqIntRP(int pri, INT_RP *rp);
 
-int OpenEvent(uint32_t cl, uint32_t spec, int mode, void (*func)());
+int OpenEvent(uint32_t cl, uint32_t spec, int mode, void (*func)(void));
 int CloseEvent(int event);
 int WaitEvent(int event);
 int TestEvent(int event);
@@ -301,7 +301,7 @@ int ResetRCnt(int spec);
 void ChangeClearPAD(int mode);
 void ChangeClearRCnt(int t, int m);
 
-int OpenTh(uint32_t (*func)(), uint32_t sp, uint32_t gp);
+int OpenTh(uint32_t (*func)(void), uint32_t sp, uint32_t gp);
 int CloseTh(int thread);
 int ChangeTh(int thread);
 

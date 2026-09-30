@@ -13,6 +13,11 @@ project(
 	HOMEPAGE_URL "http://lameguy64.net/?page=psn00bsdk"
 )
 
+# Build the SDK with modern C semantics, including fully prototyped callbacks.
+set(CMAKE_C_STANDARD 23)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS ON)
+
 include(${PROJECT_SOURCE_DIR}/cmake/flags.cmake)
 
 ## Libraries
