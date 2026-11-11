@@ -497,6 +497,9 @@ int CdControlB(CdlCommand cmd, const void *param, uint8_t *result);
  * callback) to wait for a command to finish, or CdSyncCallback() to register a
  * callback to be executed once the drive is idle.
  *
+ * Use CdAckCallback() to receive the full acknowledge response without
+ * waiting. The callback remains registered until changed or cleared.
+ *
  * A maximum of two commands can be issued at once and only the first command
  * can have parameters, as the parameter buffer is not cleared until the last
  * command is acknowledged by the controller.
@@ -584,6 +587,24 @@ int CdCommandF(CdlCommand cmd, const void *param, int length);
  * @see CdControl()
  */
 CdlIntrResult CdSync(int mode, uint8_t *result);
+
+/**
+ * @brief Sets a callback for command acknowledgements.
+ *
+ * @details Registers a persistent callback for CdlAcknowledge and for
+ * CdlDiskError while a command is awaiting acknowledgement. Sector/report
+ * interrupts and CdlComplete do not invoke this callback.
+ *
+ * The response buffer is valid only during the callback. The callback runs
+ * in IRQ context and may issue commands with CdControlF() or CdCommandF(),
+ * but must not call synchronous CD APIs. Pass NULL to disable it.
+ *
+ * @param func
+ * @return Previously set callback or NULL
+ *
+ * @see CdControlF(), CdCommandF(), CdSyncCallback()
+ */
+CdlCB CdAckCallback(CdlCB func);
 
 /**
  * @brief Sets a callback for blocking commands.

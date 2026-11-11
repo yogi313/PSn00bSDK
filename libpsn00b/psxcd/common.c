@@ -19,6 +19,8 @@
 static CdlCB _ready_callback = (CdlCB) 0;
 static CdlCB _sync_callback  = (CdlCB) 0;
 static CdlCB _pause_callback = (CdlCB) 0;
+static CdlCB _ack_callback   = (CdlCB) 0;
+static uint8_t _ack_result[MAX_RESULT_SIZE];
 
 static uint8_t *_result_ptr;
 static uint8_t _last_command, _last_mode;
@@ -132,11 +134,23 @@ static void _cd_irq_handler(void) {
 	uint8_t first_byte = CD_REG(1);
 	CdlCB   callback;
 
-	if (_result_ptr) {
-		_result_ptr[0] = first_byte;
+	CdlCB ack_callback = (CdlCB) 0;
+	if ((irq == CdlAcknowledge) || ((irq == CdlDiskError) && _ack_pending)) {
+		ack_callback = _ack_callback;
+	}
+	uint8_t *result = _result_ptr;
+	if (((irq == CdlDataReady) || (irq == CdlDataEnd)) && _ack_pending) {
+		// A sector/report IRQ must not overwrite the pending command's result.
+		result = (uint8_t *) 0;
+	} else if (ack_callback && !result) {
+		result = _ack_result;
+	}
+	if (result) {
+		result[0] = first_byte;
 
-		for (int i = 1; (CD_REG(0) & 0x20) && (i < MAX_RESULT_SIZE); i++)
-			_result_ptr[i] = CD_REG(1);
+		for (int i = 1; (CD_REG(0) & 0x20) && (i < MAX_RESULT_SIZE); i++) {
+			result[i] = CD_REG(1);
+		}
 	}
 
 	switch (irq) {
@@ -177,7 +191,7 @@ static void _cd_irq_handler(void) {
 			break;
 
 		case CdlDiskError:
-			_last_error = CD_REG(1);
+			_last_error = result ? result[1] : CD_REG(1);
 			callback    = _ready_callback;
 
 			if (_ack_pending || _sync_pending) {
@@ -192,12 +206,19 @@ static void _cd_irq_handler(void) {
 			break;
 	}
 
-	if (callback)
-		callback(irq, _result_ptr);
+	if (callback) {
+		callback(irq, result);
+	}
 
-	_last_command = 0;
-	_last_irq     = irq;
-	_result_ptr   = (uint8_t *) 0;
+	_last_irq = irq;
+	if ((irq != CdlDataReady) && (irq != CdlDataEnd)) {
+		_last_command = 0;
+		_result_ptr = (uint8_t *) 0;
+	}
+	if (ack_callback) {
+		// Finish this request before allowing the callback to issue another.
+		ack_callback(irq, result);
+	}
 }
 
 /* Initialization */
@@ -330,8 +351,6 @@ int CdControlF(CdlCommand cmd, const void *param) {
 		// The command takes no parameter, but the API allows specifying a
 		// location to be sent to the drive as a separate CdlSetloc command.
 		length = 0;
-		if (param)
-			CdCommandF(CdlSetloc, param, 3);
 	} else {
 		// The command takes a mandatory parameter or no parameter.
 		length = flags & 3;
@@ -341,6 +360,12 @@ int CdControlF(CdlCommand cmd, const void *param) {
 		}
 	}
 
+	if (_ack_callback && !_result_ptr) {
+		_result_ptr = _ack_result;
+	}
+	if ((flags & SETLOC) && param) {
+		CdCommandF(CdlSetloc, param, 3);
+	}
 	return CdCommandF(cmd, param, length);
 }
 
@@ -417,6 +442,16 @@ CdlCB CdReadyCallback(CdlCB func) {
 
 	CdlCB old_callback = _ready_callback;
 	_ready_callback    = func;
+
+	FastExitCriticalSection();
+	return old_callback;
+}
+
+CdlCB CdAckCallback(CdlCB func) {
+	FastEnterCriticalSection();
+
+	CdlCB old_callback = _ack_callback;
+	_ack_callback = func;
 
 	FastExitCriticalSection();
 	return old_callback;
