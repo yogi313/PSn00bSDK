@@ -102,6 +102,8 @@ void ResetGraph(int mode) {
 	}
 
 	if (mode) {
+		// PsyQ stops GPU DMA before clearing the command FIFO on a soft reset.
+		DMA_CHCR(DMA_GPU) = 0x00000401;
 		GPU_GP1 = 0x01000000; // Reset command buffer
 		GPU_GP1 = 0x02000000; // Reset IRQ
 		GPU_GP1 = 0x04000000; // Disable DMA request
