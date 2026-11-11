@@ -7,12 +7,15 @@
 #include <assert.h>
 #include <psxetc.h>
 #include <psxapi.h>
+#include <psxgpu.h>
 #include <psxcd.h>
 #include <hwregs_c.h>
 
 #define CD_ACK_TIMEOUT		0x100000
 #define CD_SYNC_TIMEOUT		0x100000
 #define MAX_RESULT_SIZE		32
+#define CD_QUEUE_CAPACITY	8
+#define CD_QUEUE_TIMEOUT		300
 
 /* Internal globals */
 
@@ -28,6 +31,22 @@ static CdlLOC  _last_pos;
 
 static volatile uint8_t _last_status, _last_irq, _last_error;
 static volatile uint8_t _ack_pending, _sync_pending;
+
+typedef struct {
+	CdlQueueCB callback;
+	uint8_t command;
+	uint8_t parameters[3];
+	uint8_t has_parameters;
+} QueuedCommand;
+
+static QueuedCommand _command_queue[CD_QUEUE_CAPACITY];
+static uint8_t _queue_head;
+static uint8_t _queue_length;
+static uint8_t _queue_stalled;
+static volatile uint8_t _queue_active;
+static volatile CdlIntrResult _queue_result;
+static uint8_t _queue_response[MAX_RESULT_SIZE];
+static uint32_t _queue_start_frame;
 
 // These globals are accessed by other parts of the library.
 CdlCB _cd_override_callback;
@@ -219,6 +238,9 @@ static void _cd_irq_handler(void) {
 		// Finish this request before allowing the callback to issue another.
 		ack_callback(irq, result);
 	}
+	if (_queue_active && ((irq == CdlAcknowledge) || (irq == CdlComplete) || (irq == CdlDiskError))) {
+		_queue_result = irq;
+	}
 }
 
 /* Initialization */
@@ -247,6 +269,10 @@ int CdInit(void) {
 	_last_mode    = 0;
 	_ack_pending  = 0;
 	_sync_pending = 0;
+	_queue_head = 0;
+	_queue_length = 0;
+	_queue_active = 0;
+	_queue_stalled = 0;
 
 	_cd_override_callback = (CdlCB) 0;
 	_cd_media_changed     = 1;
@@ -395,6 +421,89 @@ int CdControlB(CdlCommand cmd, const void *param, uint8_t *result) {
 
 	error = CdSync(0, 0);
 	return (error == CdlDiskError) ? 0 : 1;
+}
+
+/* Optional main-thread command queue. No commands are sent from the IRQ. */
+
+int CdQueueCommand(CdlCommand cmd, const void *param, CdlQueueCB callback) {
+	if (_queue_stalled || (_queue_length == CD_QUEUE_CAPACITY)) {
+		return 0;
+	}
+	if ((cmd < CdlNop) || (cmd > CdlReadTOC) || (cmd == CdlReset) || (cmd == 0x17) || (cmd == 0x18)) {
+		return 0;
+	}
+
+	uint8_t flags = _command_flags[cmd];
+	// Location commands must be separate entries so each ACK is consumed.
+	if ((flags & SETLOC) && param) {
+		return 0;
+	}
+	int length = (flags & SETLOC) ? 0 : (flags & 3);
+	if ((flags & OPTIONAL) && !param) {
+		length = 0;
+	}
+	if (length && !param) {
+		return 0;
+	}
+
+	QueuedCommand *entry = &_command_queue[(_queue_head + _queue_length) % CD_QUEUE_CAPACITY];
+	entry->command = (uint8_t) cmd;
+	entry->callback = callback;
+	entry->has_parameters = length != 0;
+	for (int i = 0; i < length; i++) {
+		entry->parameters[i] = ((const uint8_t *) param)[i];
+	}
+	_queue_length++;
+	return 1;
+}
+
+int CdQueueLength(void) {
+	return _queue_stalled ? -1 : _queue_length;
+}
+
+int CdQueueUpdate(void) {
+	if (_queue_stalled) {
+		return -1;
+	}
+	if (!_queue_length) {
+		return 0;
+	}
+
+	if (_queue_active) {
+		CdlIntrResult result = _queue_result;
+		uint8_t flags = _command_flags[_command_queue[_queue_head].command];
+		if (result == CdlDiskError) {
+			_queue_active = 0;
+			_queue_length = 0;
+			return -1;
+		}
+		if ((result == CdlNoIntr) || ((flags & BLOCKING) && (result != CdlComplete))) {
+			if ((uint32_t) VSync(-1) - _queue_start_frame >= CD_QUEUE_TIMEOUT) {
+				// A late IRQ must not be mistaken for a later command's reply.
+				_queue_stalled = 1;
+				return -1;
+			}
+			return _queue_length;
+		}
+
+		CdlQueueCB callback = _command_queue[_queue_head].callback;
+		_queue_active = 0;
+		_queue_head = (_queue_head + 1) % CD_QUEUE_CAPACITY;
+		_queue_length--;
+		if (callback) {
+			callback(_queue_response);
+		}
+	}
+
+	if (_queue_length && !_ack_pending && !_sync_pending) {
+		const QueuedCommand *entry = &_command_queue[_queue_head];
+		_queue_result = CdlNoIntr;
+		_queue_start_frame = (uint32_t) VSync(-1);
+		_result_ptr = _queue_response;
+		_queue_active = 1;
+		CdControlF((CdlCommand) entry->command, entry->has_parameters ? entry->parameters : (const void *) 0);
+	}
+	return _queue_length;
 }
 
 /* Other APIs and callback setters */

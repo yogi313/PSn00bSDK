@@ -385,6 +385,9 @@ typedef void *CdlDIR;
  */
 typedef void (*CdlCB)(CdlIntrResult, uint8_t *);
 
+/** @brief Successful queued-command callback, run by CdQueueUpdate(). */
+typedef void (*CdlQueueCB)(const uint8_t *);
+
 /* Public API */
 
 #ifdef __cplusplus
@@ -587,6 +590,37 @@ int CdCommandF(CdlCommand cmd, const void *param, int length);
  * @see CdControl()
  */
 CdlIntrResult CdSync(int mode, uint8_t *result);
+
+/**
+ * @brief Copies a command and its parameters into an eight-entry FIFO.
+ *
+ * @details Returns 1 on success, 0 if full, stalled or invalid. No command is
+ * sent here. Parameter lengths come from the command definition, not sizeof()
+ * the SDK struct. Queue CdlSetloc separately; pass NULL for ReadN/ReadS/SeekL/
+ * SeekP. CdlReset and unknown commands are not supported.
+ *
+ * Do not mix queued operations with CdControl(), CdControlF(), CdCommand(),
+ * CdRead() or similar APIs until the queue is empty. All queue functions and
+ * their callbacks run in the main thread. Callbacks may enqueue more commands,
+ * but must not call CdQueueUpdate() recursively. IRQ callbacks remain unchanged.
+ */
+int CdQueueCommand(CdlCommand cmd, const void *param, CdlQueueCB callback);
+
+/**
+ * @brief Advances the FIFO without waiting for a drive response.
+ *
+ * @details Waits for ACK, and also Complete for commands that require it.
+ * Successful commands invoke their callback with the ACK response, valid only
+ * during the callback. Returns the remaining count, or -1 on error; a drive
+ * error discards the rest of the batch without invoking its callbacks.
+ *
+ * A command times out after 300 VBlanks. This stalls the queue to prevent a late
+ * reply from completing another command. CdInit() is required to recover.
+ */
+int CdQueueUpdate(void);
+
+/** @brief Returns queued entries including the active command, or -1 if stalled. */
+int CdQueueLength(void);
 
 /**
  * @brief Sets a callback for command acknowledgements.
